@@ -242,7 +242,28 @@ func getValidateCondition(fieldName string, typeInfo TypeInfo) string {
 		if typeInfo.IsOptional {
 			return "true"
 		}
-		return fmt.Sprintf("v.%v.(Validatable).Validate() != nil", fieldName)
+
+		cases := ""
+		for _, mapTypeInfo := range typeInfo.Mapping {
+
+			goType := getGoType(mapTypeInfo)
+
+			cases += fmt.Sprintf(`
+				case %v:
+					x := value.(%v)
+					return (&x).Validate() == nil
+			`, goType, goType)
+		}
+
+		return fmt.Sprintf(`
+			func (value interface{}) bool {
+				switch(value.(type)) {
+					%v
+					default:
+						panic("not implemented")
+				}
+			}(v.%v)
+		`, cases, fieldName)
 	}
 
 	if typeInfo.IsArray {
