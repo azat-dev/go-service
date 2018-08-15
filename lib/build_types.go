@@ -220,6 +220,14 @@ func getTypeValidator(name TypeName, fields Fields) (string, error) {
 		`, condition, fieldName)
 	}
 
+	if conditions == "" {
+		return fmt.Sprintf(`
+			func(v *%v) Validate() error {
+				return nil
+			}
+		`, name), nil
+	}
+
 	return fmt.Sprintf(`
 		func(v *%v) Validate() error {
 			isValid := false
