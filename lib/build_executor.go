@@ -84,8 +84,12 @@ func buildExecutorCase(methodName MethodName, methodData MethodData) string {
 		resultTypeGo = "*" + resultTypeGo
 	}
 
-	params := "session"
+	params := ""
 	for paramName, paramTypeInfo := range methodData.Params {
+
+		if params != "" {
+			params += ", "
+		}
 
 		param := "params." + strings.Title(string(paramName))
 		if paramTypeInfo.IsCustomType || paramTypeInfo.IsArray {
@@ -110,7 +114,7 @@ func buildExecutorCase(methodName MethodName, methodData MethodData) string {
 				return exchange.NewErrorResponse(requestId, "WrongRequest", fmt.Sprintf("can't wrong params: %%v", err))
 			}
 
-			result, err := e.handler.%v(%v)
+			result, err := e.handler.%v(session, %v)
 			if err != nil {
 				return exchange.NewErrorResponse(requestId, "ServerError", err.Error())
 			}
