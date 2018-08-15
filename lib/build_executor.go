@@ -69,7 +69,7 @@ func buildExecutorFile(service *Service) (string, error) {
 
 	formattedText, err := format.Source([]byte(text))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("can't format code: %v \n\n %v", err, text)
 	}
 
 	return string(formattedText), nil

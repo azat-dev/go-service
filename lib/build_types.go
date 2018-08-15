@@ -54,7 +54,7 @@ func buildTypesFile(service *Service) (string, error) {
 
 	formattedText, err := format.Source([]byte(typesFileText))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("can't format code: %v \n\n %v", err, typesFileText)
 	}
 
 	return string(formattedText), nil

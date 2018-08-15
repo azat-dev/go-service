@@ -25,21 +25,15 @@ func Build(serviceSchemaPath string, outputPath string) error {
 		return err
 	}
 
-	fmt.Println(typesFileText)
-
 	handlerInterfaceFileText, err := buildHandlerInterfaceFile(&service)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(handlerInterfaceFileText)
-
 	executorFileText, err := buildExecutorFile(&service)
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(executorFileText)
 
 	err = ioutil.WriteFile(filepath.Join(outputPath, "types.go"), []byte(typesFileText), 0777)
 	if err != nil {
@@ -56,5 +50,6 @@ func Build(serviceSchemaPath string, outputPath string) error {
 		return err
 	}
 
+	fmt.Println("Success!")
 	return nil
 }
