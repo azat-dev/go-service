@@ -71,24 +71,22 @@ func buildExecutorFile(service *Service) (string, error) {
 }
 
 func buildExecutorCase(methodName MethodName, methodData MethodData) string {
-	resultType := methodData.Result
+	returnTypeInfo := methodData.Result
 	paramsName := strings.Title(string(methodName)) + "Params"
 
-	returnTypeInfo := getTypeInfo(string(resultType))
-	resultTypeGo := schemaTypeToGoType(string(resultType))
+	resultTypeGo := getGoType(returnTypeInfo)
 	if returnTypeInfo.IsCustomType || returnTypeInfo.IsArray {
 		resultTypeGo = "*" + resultTypeGo
 	}
 
 	params := ""
-	for paramName, paramType := range methodData.Params {
+	for paramName, paramTypeInfo := range methodData.Params {
 		if params != "" {
 			params += ", "
 		}
 
 		param := "params." + strings.Title(string(paramName))
 
-		paramTypeInfo := getTypeInfo(string(paramType))
 		if paramTypeInfo.IsCustomType || paramTypeInfo.IsArray {
 			param = "&" + param
 		}

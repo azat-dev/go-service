@@ -13,7 +13,7 @@ func Build(serviceSchemaPath string, outputPath string) error {
 		return err
 	}
 
-	var service Service
+	service := Service{}
 	err = yaml.Unmarshal(rawSchema, &service)
 
 	if err != nil {

@@ -30,22 +30,20 @@ func buildHandlerInterfaceFile(service *Service) (string, error) {
 }
 
 func buildHandlerMethod(methodName MethodName, methodData MethodData) string {
-	resultType := methodData.Result
+	returnTypeInfo := methodData.Result
 
-	returnTypeInfo := getTypeInfo(string(resultType))
-	resultTypeGo := schemaTypeToGoType(string(resultType))
+	resultTypeGo := getGoType(returnTypeInfo)
 	if returnTypeInfo.IsCustomType || returnTypeInfo.IsArray {
 		resultTypeGo = "*" + resultTypeGo
 	}
 
 	params := ""
-	for paramName, paramType := range methodData.Params {
+	for paramName, paramTypeInfo := range methodData.Params {
 		if params != "" {
 			params += ", "
 		}
 
-		paramTypeInfo := getTypeInfo(string(paramType))
-		paramTypeGo := schemaTypeToGoType(string(paramType))
+		paramTypeGo := getGoType(paramTypeInfo)
 		if paramTypeInfo.IsCustomType || paramTypeInfo.IsArray {
 			paramTypeGo = "*" + paramTypeGo
 		}

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"go/format"
-	"regexp"
-	"strconv"
 )
 
 func buildTypesFile(service *Service) (string, error) {
@@ -15,6 +13,11 @@ func buildTypesFile(service *Service) (string, error) {
 			"github.com/pkg/errors"
 			validator "github.com/asaskevich/govalidator"
 		)
+
+		type Validatable interface {
+			Validate() error
+		}
+
 	`, service.Name)
 
 	for name, fields := range service.Types {
@@ -35,7 +38,7 @@ func buildTypesFile(service *Service) (string, error) {
 		//PARAMETERS
 	`
 
-	for methodName, methodData  := range service.Methods {
+	for methodName, methodData := range service.Methods {
 		paramsText, err := buildParamsForMethod(methodName, methodData)
 		if err != nil {
 			return "", err
@@ -56,58 +59,12 @@ func buildTypesFile(service *Service) (string, error) {
 	return string(formattedText), nil
 }
 
-type TypeInfo struct {
-	IsCustomType bool
-	DataType     string
-	IsArray      bool
-	IsOptional   bool
-	Min          int
-	Max          int
-}
-
-func getTypeInfo(schemaType string) TypeInfo {
-	result := TypeInfo{
-		Max: -1,
-		Min: 0,
-	}
-
-	var r = regexp.MustCompile(`^(?P<array>\[\])?(?P<type>[\w]+)(\((?P<min>[0-9]+)\s*(,\s*(?P<max>[0-9]+))?\))?(?P<optional>[?])?$`)
-	matches := r.FindAllStringSubmatch(schemaType, -1)
-	groups := r.SubexpNames()
-
-	var value string
-	for index, group := range groups {
-
-		value = matches[0][index]
-
-		switch group {
-		case "array":
-			result.IsArray = (value != "")
-		case "optional":
-			result.IsOptional = (value != "")
-		case "type":
-			result.DataType = value
-		case "min":
-			if value != "" {
-				result.Min, _ = strconv.Atoi(value)
-				result.Max, _ = strconv.Atoi(value)
-			}
-		case "max":
-			if value != "" {
-				result.Max, _ = strconv.Atoi(value)
-			}
-		}
-	}
-
-	result.IsCustomType = strings.Title(result.DataType) == result.DataType
-
-	return result
-}
-
-func schemaTypeToGoType(schemaType string) string {
-	typeInfo := getTypeInfo(schemaType)
-
+func getGoType(typeInfo TypeInfo) string {
 	var resultType string
+
+	if typeInfo.IsVariable {
+		return "interface{}"
+	}
 
 	switch typeInfo.DataType {
 	case "uuid":
@@ -143,9 +100,9 @@ func schemaTypeToGoType(schemaType string) string {
 func buildType(name TypeName, fields Fields) (string, error) {
 	fieldsText := ""
 
-	for fieldName, fieldType := range fields {
+	for fieldName, fieldTypeInfo := range fields {
 		fieldName := string(fieldName)
-		goType := schemaTypeToGoType(string(fieldType))
+		goType := getGoType(fieldTypeInfo)
 		fieldsText = fieldsText + fmt.Sprintf("%v %v `json:\"%v\"`\n", strings.Title(fieldName), goType, fieldName)
 	}
 
@@ -154,16 +111,101 @@ func buildType(name TypeName, fields Fields) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("type %v struct { %v }\n %v", name, fieldsText, typeValidator), nil
+	return fmt.Sprintf(`
+		type %v struct {
+			%v 
+		}
+		%v
+		
+		%v
+	`, name, fieldsText, typeValidator, getUnmarshaller(name, fields)), nil
+}
+
+func getUnmarshaller(typeName TypeName, fields Fields) string {
+
+	variableFields := map[string]TypeInfo{}
+	plainFields := map[string]TypeInfo{}
+
+	for fieldName, fieldTypeInfo := range fields {
+		fieldName := strings.Title(string(fieldName))
+
+		if fieldTypeInfo.IsVariable {
+			variableFields[fieldName] = fieldTypeInfo
+		} else {
+			plainFields[fieldName] = fieldTypeInfo
+		}
+	}
+
+	if len(variableFields) == 0 {
+		return ""
+	}
+
+	commonFields := ""
+	commonFieldsAssignment := ""
+	for fieldName, fieldTypeInfo := range plainFields {
+		commonFields += fmt.Sprintf("%v %v \n", fieldName, getGoType(fieldTypeInfo))
+		commonFieldsAssignment += fmt.Sprintf("v.%v = commonFields.%v \n", fieldName, fieldName)
+	}
+
+	rawVariableFields := ""
+	variableFieldsUnmarshal := ""
+
+	for fieldName, fieldTypeInfo := range variableFields {
+		rawVariableFields += fmt.Sprintf("%v json.RawMessage \n", fieldName)
+		mapField := fieldTypeInfo.MapField
+
+		cases := ""
+		for value, mappingTypeInfo := range fieldTypeInfo.Mapping {
+			cases += fmt.Sprintf(`
+				case "%v":
+					var parsedData %v
+					err = json.Unmarshal(commonFields.%v, &parsedData)
+					if err != nil {
+						return err
+					}
+
+					v.%v = parsedData
+					break
+			`, value, getGoType(mappingTypeInfo), fieldName, fieldName)
+		}
+
+		variableFieldsUnmarshal += fmt.Sprintf(`
+			switch(v.%v) {
+				%v
+				default:
+					return errors.New("invalid %v value")
+			}
+		`, strings.Title(string(mapField)), cases, mapField)
+	}
+
+	return fmt.Sprintf(`
+		func(v *%v) UnmarshalJSON(packed []byte) error {
+			commonFields := struct{
+				%v
+				%v
+			} {}
+
+			err := json.Unmarshal(packed, &commonFields)
+			if err != nil {
+				return err
+			}
+
+			%v
+
+			%v
+
+			return nil
+		}
+	`, typeName, commonFields, rawVariableFields, commonFieldsAssignment, variableFieldsUnmarshal)
 }
 
 func getTypeValidator(name TypeName, fields Fields) (string, error) {
 	conditions := ""
 
-	for fieldName, fieldType := range fields {
+	for fieldName, fieldTypeInfo := range fields {
 		fieldName := strings.Title(string(fieldName))
 
-		condition := getValidateCondition(fieldName, fieldType)
+		condition := getValidateCondition(fieldName, fieldTypeInfo)
 		if condition == "true" {
 			continue
 		}
@@ -186,12 +228,17 @@ func getTypeValidator(name TypeName, fields Fields) (string, error) {
 	`, name, conditions), nil
 }
 
-func getValidateCondition(fieldName string, fieldType TypeName) string {
-	typeInfo := getTypeInfo(string(fieldType))
+func getValidateCondition(fieldName string, typeInfo TypeInfo) string {
+	if typeInfo.IsVariable {
+		if typeInfo.IsOptional {
+			return "true"
+		}
+		return fmt.Sprintf("v.%v.(Validatable).Validate() != nil", fieldName)
+	}
 
 	if typeInfo.IsArray {
 		result := "true"
-		goType := schemaTypeToGoType(string(fieldType))
+		goType := getGoType(typeInfo)
 
 		if typeInfo.Max != -1 {
 			result = fmt.Sprintf(`
@@ -223,7 +270,7 @@ func getValidateCondition(fieldName string, fieldType TypeName) string {
 					}
 					return true
 				}(v.%v)
-			`, result, goType, fieldName, )
+			`, result, goType, fieldName)
 
 		}
 
@@ -263,7 +310,6 @@ func getValidateCondition(fieldName string, fieldType TypeName) string {
 }
 
 func buildParamsForMethod(methodName MethodName, methodData MethodData) (string, error) {
-
 	name := strings.Title(string(methodName)) + "Params"
 	fieldsText := ""
 
@@ -271,7 +317,7 @@ func buildParamsForMethod(methodName MethodName, methodData MethodData) (string,
 	for paramName, paramType := range methodData.Params {
 		paramName := string(paramName)
 
-		goType := schemaTypeToGoType(string(paramType))
+		goType := getGoType(paramType)
 		fieldsText = fieldsText + fmt.Sprintf("%v %v `json:\"%v\"`\n", strings.Title(paramName), goType, paramName)
 		fields[FieldName(paramName)] = paramType
 	}
