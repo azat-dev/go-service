@@ -28,23 +28,28 @@ func buildExecutorFile(service *Service) (string, error) {
 			handler HandlerInterface
 		}
 
+		type SessionInterface interface {
+			GetUserId() string
+			GetSessionId() string
+		}
+
 		func NewExecutor(handler HandlerInterface) *Executor {
 			return &Executor{
 				handler: handler,
 			}
 		}
 		
-		func (e *Executor) Execute(packedMessage *[]byte) (*[]byte, error) {
+		func (e *Executor) Execute(session SessionInterface, packedMessage *[]byte) (*[]byte, error) {
 			if packedMessage == nil {
 				return nil, errors.New("message text is required")
 			}
 
-			response := e.execute(packedMessage)
+			response := e.execute(session, packedMessage)
 			packed, _ := json.Marshal(response)
 			return &packed, nil
 		}
 
-		func (e *Executor) execute(packedMessage *[]byte) exchange.ResponseMessage {
+		func (e *Executor) execute(session SessionInterface, packedMessage *[]byte) exchange.ResponseMessage {
 			
 			var requestMessage exchange.RequestMessage
 			err := json.Unmarshal(*packedMessage, &requestMessage)
@@ -79,16 +84,12 @@ func buildExecutorCase(methodName MethodName, methodData MethodData) string {
 		resultTypeGo = "*" + resultTypeGo
 	}
 
-	params := ""
+	params := "session"
 	for paramName, paramTypeInfo := range methodData.Params {
-		if params != "" {
-			params += ", "
-		}
 
 		param := "params." + strings.Title(string(paramName))
-
 		if paramTypeInfo.IsCustomType || paramTypeInfo.IsArray {
-			param = "&" + param
+			param = ", &" + param
 		}
 
 		params += fmt.Sprintf("%v", param)
