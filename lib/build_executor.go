@@ -60,7 +60,7 @@ func buildExecutorFile(service *Service) (string, error) {
 
 			return exchange.NewErrorResponse("", "WrongRequest", "no such method")
 		}
-	`, service.Name, cases)
+	`, service.Package, cases)
 
 	formattedText, err := format.Source([]byte(text))
 	if err != nil {

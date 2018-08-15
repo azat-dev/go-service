@@ -2,8 +2,8 @@ package lib
 
 import (
 	"fmt"
-	"strings"
 	"go/format"
+	"strings"
 )
 
 func buildTypesFile(service *Service) (string, error) {
@@ -19,7 +19,7 @@ func buildTypesFile(service *Service) (string, error) {
 			Validate() error
 		}
 
-	`, service.Name)
+	`, service.Package)
 
 	for name, fields := range service.Types {
 		typeText, err := buildType(name, fields)

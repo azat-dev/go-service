@@ -2,8 +2,8 @@ package lib
 
 import (
 	"fmt"
-	"io/ioutil"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"path/filepath"
 )
 

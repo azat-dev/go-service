@@ -1,8 +1,8 @@
 package lib
 
 import (
-	"go/format"
 	"fmt"
+	"go/format"
 	"strings"
 )
 
@@ -19,7 +19,7 @@ func buildHandlerInterfaceFile(service *Service) (string, error) {
 		type HandlerInterface interface {
 			%v
 		}
-	`, service.Name, methods)
+	`, service.Package, methods)
 
 	formattedText, err := format.Source([]byte(text))
 	if err != nil {

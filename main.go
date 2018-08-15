@@ -1,11 +1,11 @@
 package main
 
 import (
-	"log"
-	"os"
-	"github.com/urfave/cli"
 	"bitbucket.org/timeio/go-service/lib"
 	"github.com/pkg/errors"
+	"github.com/urfave/cli"
+	"log"
+	"os"
 )
 
 func main() {
@@ -14,8 +14,8 @@ func main() {
 
 	app.Commands = []cli.Command{
 		{
-			Name:  "build",
-			Usage: "build migrations",
+			Name:   "build",
+			Usage:  "build migrations",
 			Action: build,
 		},
 	}
@@ -33,7 +33,6 @@ func build(c *cli.Context) error {
 	if filePath == "" {
 		return errors.New("file path is required")
 	}
-
 
 	outputPath := args.Get(1)
 	if outputPath == "" {

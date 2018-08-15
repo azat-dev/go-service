@@ -1,9 +1,9 @@
 package lib
 
 import (
-	"strings"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type TypeName string
@@ -90,8 +90,8 @@ func (f *Fields) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			}
 
 			(*f)[FieldName(fieldName)] = TypeInfo{
-				MapField: FieldName(mapField),
-				Mapping:  mapping,
+				MapField:   FieldName(mapField),
+				Mapping:    mapping,
 				IsVariable: true,
 			}
 		}
@@ -112,8 +112,7 @@ func (f *MethodData) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	parsedData := struct {
 		Params map[ParamName]TypeName `json:"params"`
 		Result TypeName               `json:"result"`
-	} {
-	}
+	}{}
 
 	err := unmarshal(&parsedData)
 	if err != nil {
@@ -143,4 +142,5 @@ type Service struct {
 	Description string                    `json:"description"`
 	Types       map[TypeName]Fields       `json:"types"`
 	Methods     map[MethodName]MethodData `json:"methods"`
+	Package     string                    `json:"package"`
 }
