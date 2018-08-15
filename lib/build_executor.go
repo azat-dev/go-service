@@ -96,7 +96,7 @@ func buildExecutorCase(methodName MethodName, methodData MethodData) string {
 			param = "&" + param
 		}
 
-		params += fmt.Sprintf(", %v", param)
+		params += fmt.Sprintf("%v", param)
 	}
 
 	handlerMethod := strings.Title(string(methodName))
