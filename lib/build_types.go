@@ -10,6 +10,7 @@ func buildTypesFile(service *Service) (string, error) {
 	typesFileText := fmt.Sprintf(`
 		package %v
 		import (
+			"encoding/json"
 			"github.com/pkg/errors"
 			validator "github.com/asaskevich/govalidator"
 		)
