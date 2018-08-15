@@ -89,10 +89,10 @@ func buildExecutorCase(methodName MethodName, methodData MethodData) string {
 
 		param := "params." + strings.Title(string(paramName))
 		if paramTypeInfo.IsCustomType || paramTypeInfo.IsArray {
-			param = ", &" + param
+			param = "&" + param
 		}
 
-		params += fmt.Sprintf("%v", param)
+		params += fmt.Sprintf(", %v", param)
 	}
 
 	handlerMethod := strings.Title(string(methodName))

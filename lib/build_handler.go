@@ -52,5 +52,5 @@ func buildHandlerMethod(methodName MethodName, methodData MethodData) string {
 	}
 
 	name := strings.Title(string(methodName))
-	return fmt.Sprintf("%v(%v) (%v, error)", name, params, resultTypeGo)
+	return fmt.Sprintf("%v(%v) (session SessionInterface, %v, error)", name, params, resultTypeGo)
 }
