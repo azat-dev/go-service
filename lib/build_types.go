@@ -334,7 +334,7 @@ func getValidateConditionForArrayValue(valueName string, typeInfo TypeInfo) stri
 		lengthCondition += " &&\n"
 	}
 
-	itemCondition := "item.Validate() != nil"
+	itemCondition := "item.Validate() == nil"
 	if !typeInfo.IsCustomType {
 		itemCondition = getValidateConditionForSimpleValue("item", typeInfo)
 	}
