@@ -54,7 +54,8 @@ func buildTypesFile(service *Service) (string, error) {
 
 	formattedText, err := format.Source([]byte(typesFileText))
 	if err != nil {
-		return "", fmt.Errorf("can't format code: %v \n\n %v", err, typesFileText)
+		return typesFileText, nil
+		//return "", fmt.Errorf("can't format code: %v \n\n %v", err, typesFileText)
 	}
 
 	return string(formattedText), nil
@@ -206,18 +207,21 @@ func getTypeValidator(name TypeName, fields Fields) (string, error) {
 	for fieldName, fieldTypeInfo := range fields {
 		fieldName := strings.Title(string(fieldName))
 
-		condition := getValidateCondition(fieldName, fieldTypeInfo)
+		condition := getValidateCondition("value", fieldTypeInfo)
 		if condition == "true" {
 			continue
 		}
 
 		conditions += fmt.Sprintf(`
-			isValid = %v
+			 {
+				value := v.%v
+				isValid := %v
 
-			if !isValid {
-				return errors.New("%v is invalid")
+				if !isValid {
+					return fmt.Errorf("%v is invalid")
+				}
 			}
-		`, condition, fieldName)
+		`, fieldName, condition, fieldName)
 	}
 
 	if conditions == "" {
@@ -230,110 +234,149 @@ func getTypeValidator(name TypeName, fields Fields) (string, error) {
 
 	return fmt.Sprintf(`
 		func(v *%v) Validate() error {
-			isValid := false
 			%v
 			return nil
 		}
 	`, name, conditions), nil
 }
 
-func getValidateCondition(fieldName string, typeInfo TypeInfo) string {
+func getValidateCondition(valueName string, typeInfo TypeInfo) string {
 	if typeInfo.IsVariable {
-		if typeInfo.IsOptional {
-			return "true"
-		}
+		return getValidateConditionForVariableValue(valueName, typeInfo)
+	}
 
-		cases := ""
-		for _, mapTypeInfo := range typeInfo.Mapping {
+	if typeInfo.IsArray {
+		return getValidateConditionForArrayValue(valueName, typeInfo)
+	}
 
-			goType := getGoType(mapTypeInfo)
+	if typeInfo.IsCustomType {
+		return getValidateConditionForCustomType(valueName, typeInfo)
+	}
 
-			cases += fmt.Sprintf(`
+	return getValidateConditionForSimpleValue(valueName, typeInfo)
+}
+
+func getValidateConditionForCustomType(valueName string, typeInfo TypeInfo) string {
+	if typeInfo.IsOptional {
+		return fmt.Sprintf("%v == nil || (%v.Validate() == nil)", valueName, valueName)
+	}
+
+	return fmt.Sprintf("%v.Validate() == nil", valueName)
+}
+
+func getValidateConditionForVariableValue(valueName string, typeInfo TypeInfo) string {
+	if typeInfo.IsOptional {
+		//TODO
+		return "true"
+	}
+
+	cases := ""
+	for _, mapTypeInfo := range typeInfo.Mapping {
+
+		goType := getGoType(mapTypeInfo)
+
+		cases += fmt.Sprintf(`
 				case %v:
 					x := value.(%v)
 					return (&x).Validate() == nil
 			`, goType, goType)
-		}
+	}
 
-		return fmt.Sprintf(`
-			func (value interface{}) bool {
+	return fmt.Sprintf(
+		`func (value interface{}) bool {
 				switch(value.(type)) {
 					%v
 					default:
 						panic("not implemented")
 				}
-			}(v.%v)
-		`, cases, fieldName)
-	}
+			}(%v)
+		`, cases, valueName)
+}
 
-	if typeInfo.IsArray {
-		result := "true"
-		goType := getGoType(typeInfo)
+func getValidateConditionForSimpleValue(valueName string, typeInfo TypeInfo) string {
 
-		if typeInfo.Max != -1 {
-			result = fmt.Sprintf(`
-				func (value %v) bool {
-					length := len(value)
-					return length >= %v && length <= %v
-				}(v.%v)
-			`, goType, typeInfo.Min, typeInfo.Max, fieldName)
+	nilCheck := fmt.Sprintf("%v == nil || ", valueName)
 
-		} else if typeInfo.Min > 0 {
-
-			result = fmt.Sprintf(`
-				%v &&
-				func (value %v) bool {
-					length := len(value)
-					return length >= %v
-				}(v.%v)
-			`, result, goType, fieldName, typeInfo.Min)
-		}
-
-		if typeInfo.IsCustomType {
-			result = fmt.Sprintf(`
-				%v &&
-				func (value %v) bool {
-					for _, item := range value {
-						if item.Validate() != nil {
-							return false
-						}
-					}
-					return true
-				}(v.%v)
-			`, result, goType, fieldName)
-
-		}
-
+	switch typeInfo.DataType {
+	case "uuid":
 		if typeInfo.IsOptional {
-			return fmt.Sprintf(`
-				v.%v == nil || (%v)
-			`, fieldName, strings.TrimSpace(result))
+			return fmt.Sprintf("%v validator.IsUUID(*%v)", nilCheck, valueName)
+		}
+		return fmt.Sprintf("validator.IsUUID(%v)", valueName)
+
+	case "email":
+		if typeInfo.IsOptional {
+			return fmt.Sprintf("%v validator.IsEmail(*%v)", nilCheck, valueName)
+		}
+		return fmt.Sprintf("validator.IsEmail(%v)", valueName)
+
+	case "string":
+		if typeInfo.IsOptional {
+			return fmt.Sprintf(
+				"%v (%v)",
+				nilCheck, getLengthCondition("*"+valueName, typeInfo.Min, typeInfo.Max))
 		}
 
-		return result
+		return getLengthCondition(valueName, typeInfo.Min, typeInfo.Max)
 	}
 
-	nilCheck := fmt.Sprintf("v.%v == nil || ", fieldName)
-	if typeInfo.IsCustomType {
-		return fmt.Sprintf("%v v.%v.Validate() == nil", nilCheck, fieldName)
-	}
+	return "true"
+}
 
-	if typeInfo.IsArray {
-		panic("NOT IMPLEMENTED")
+func getValidateConditionForArrayValue(valueName string, typeInfo TypeInfo) string {
+
+	goType := getGoType(typeInfo)
+
+	lengthCondition := getLengthCondition(valueName, typeInfo.Min, typeInfo.Max)
+	if lengthCondition == "true" {
+		lengthCondition = ""
 	} else {
-		switch typeInfo.DataType {
-		case "uuid":
-			if typeInfo.IsOptional {
-				return fmt.Sprintf("%v validator.IsUUID(*v.%v)", nilCheck, fieldName)
-			}
-			return fmt.Sprintf("validator.IsUUID(v.%v)", fieldName)
+		lengthCondition += " &&\n"
+	}
 
-		case "email":
-			if typeInfo.IsOptional {
-				return fmt.Sprintf("%v validator.IsEmail(*v.%v)", nilCheck, fieldName)
-			}
-			return fmt.Sprintf("validator.IsEmail(v.%v)", fieldName)
-		}
+	itemCondition := "item.Validate() != nil"
+	if !typeInfo.IsCustomType {
+		itemCondition = getValidateConditionForSimpleValue("item", typeInfo)
+	}
+
+	value := "&" + valueName
+	if typeInfo.IsOptional {
+		value = valueName
+	}
+
+	itemsCondition := fmt.Sprintf(
+		`func (value *%v) bool {
+				for _, item := range *value {
+					isValid := %v
+
+					if !isValid {
+						return false
+					}
+				}
+				return true
+			} (%v)
+	`, goType, itemCondition, value)
+
+	if (typeInfo.IsOptional) {
+		return fmt.Sprintf("%v == nil || (%v %v)", valueName, lengthCondition, itemsCondition)
+	}
+
+	return lengthCondition + itemsCondition
+}
+
+func getLengthCondition(valueName string, min int, max int) string {
+	if max > 0 {
+		return fmt.Sprintf(
+			"(len(%v) >= %v && len(%v) <= %v)",
+			valueName, min, valueName, max,
+		)
+
+	} else if min > 0 {
+
+		return fmt.Sprintf(
+			"(len(%v) >= %v)",
+			valueName, min,
+		)
 	}
 
 	return "true"
