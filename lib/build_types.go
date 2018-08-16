@@ -10,6 +10,7 @@ func buildTypesFile(service *Service) (string, error) {
 	typesFileText := fmt.Sprintf(`
 		package %v
 		import (
+			"fmt"
 			"encoding/json"
 			"github.com/pkg/errors"
 			validator "github.com/asaskevich/govalidator"
@@ -54,8 +55,7 @@ func buildTypesFile(service *Service) (string, error) {
 
 	formattedText, err := format.Source([]byte(typesFileText))
 	if err != nil {
-		return typesFileText, nil
-		//return "", fmt.Errorf("can't format code: %v \n\n %v", err, typesFileText)
+		return "", fmt.Errorf("can't format code: %v \n\n %v", err, typesFileText)
 	}
 
 	return string(formattedText), nil
