@@ -1,4 +1,4 @@
-#go-service
+# go-service
 > Boilerplate code generator for json-rpc services.
   Features: parsing json to structures, input data validation
 
@@ -55,7 +55,7 @@ methods:
 
 ### 3. Look in your output directory 3 files:
 - **executor.go** - contains object that will run your code
-- **handler_interface.go** - contains interface for hanler;
+- **handler_interface.go** - contains interface for handler;
 - **types.go** - contains generated types
 
 ### 4. Implement your handler interface
