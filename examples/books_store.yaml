@@ -1,0 +1,33 @@
+---
+version: 0.0.1
+name: booksApi
+package: executor
+description: api service for books store
+types:
+  Book:
+    id: uuid
+    authorId: uuid
+    createdAt: time
+    title: string(0,255)
+  Author:
+    id: uuid
+    name: string(0,255)
+    surname: string(0,255)
+    patronymic: string(0,255)?
+methods:
+  getBook:
+    params:
+      id: uuid
+    result: Book
+  getBooks:
+    params:
+      id: uuid
+    result: "[]Book"
+  getAuthor:
+    params:
+      id: uuid
+    result: Author
+  getAuthors:
+    params:
+      id: uuid
+    result: "[]Author"
