@@ -1,4 +1,4 @@
-# ![Logo](./images/logo.svg) go-service
+# ![Logo](images/app-logo.svg) go-service
 
 > Boilerplate code generator for json-rpc services.
   Features: parsing json to structures, input data validation
