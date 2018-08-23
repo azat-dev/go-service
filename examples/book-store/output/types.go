@@ -1,8 +1,10 @@
 package executor
 
 import (
+	"encoding/json"
 	"fmt"
 	validator "github.com/asaskevich/govalidator"
+	"github.com/pkg/errors"
 )
 
 type Validatable interface {
@@ -19,27 +21,30 @@ const (
 	BookItem BookType = "book"
 )
 
+func (v BookType) Validate() error {
+	switch v {
+	case Magazine:
+		return nil
+	case BookItem:
+		return nil
+
+	}
+
+	return fmt.Errorf("no such value: %v", v)
+}
+
 /////////////////////////////////////////////////////////////////////
 //Book
 
 type Book struct {
+	Title     string   `json:"title"`
 	Type      BookType `json:"type"`
 	Id        string   `json:"id"`
 	AuthorId  string   `json:"authorId"`
 	CreatedAt int64    `json:"createdAt"`
-	Title     string   `json:"title"`
 }
 
 func (v *Book) Validate() error {
-
-	{
-		value := v.Type
-		isValid := value.Validate() == nil
-
-		if !isValid {
-			return fmt.Errorf("Type is invalid")
-		}
-	}
 
 	{
 		value := v.Id
@@ -68,6 +73,15 @@ func (v *Book) Validate() error {
 		}
 	}
 
+	{
+		value := v.Type
+		isValid := value.Validate() == nil
+
+		if !isValid {
+			return fmt.Errorf("Type is invalid")
+		}
+	}
+
 	return nil
 }
 
@@ -75,31 +89,13 @@ func (v *Book) Validate() error {
 //Author
 
 type Author struct {
-	Name       string  `json:"name"`
-	Surname    string  `json:"surname"`
 	Patronymic *string `json:"patronymic"`
 	Id         string  `json:"id"`
+	Name       string  `json:"name"`
+	Surname    string  `json:"surname"`
 }
 
 func (v *Author) Validate() error {
-
-	{
-		value := v.Name
-		isValid := (len(value) >= 0 && len(value) <= 255)
-
-		if !isValid {
-			return fmt.Errorf("Name is invalid")
-		}
-	}
-
-	{
-		value := v.Surname
-		isValid := (len(value) >= 0 && len(value) <= 255)
-
-		if !isValid {
-			return fmt.Errorf("Surname is invalid")
-		}
-	}
 
 	{
 		value := v.Patronymic
@@ -119,31 +115,29 @@ func (v *Author) Validate() error {
 		}
 	}
 
-	return nil
-}
-
-/////////////////////////////////////////////////////////////////////
-//PARAMETERS
-
-/////////////////////////////////////////////////////////////////////
-//getAuthors
-type GetAuthorsParams struct {
-	Id string `json:"id"`
-}
-
-func (v *GetAuthorsParams) Validate() error {
-
 	{
-		value := v.Id
-		isValid := validator.IsUUID(value)
+		value := v.Name
+		isValid := (len(value) >= 0 && len(value) <= 255)
 
 		if !isValid {
-			return fmt.Errorf("Id is invalid")
+			return fmt.Errorf("Name is invalid")
+		}
+	}
+
+	{
+		value := v.Surname
+		isValid := (len(value) >= 0 && len(value) <= 255)
+
+		if !isValid {
+			return fmt.Errorf("Surname is invalid")
 		}
 	}
 
 	return nil
 }
+
+/////////////////////////////////////////////////////////////////////
+//PARAMETERS
 
 /////////////////////////////////////////////////////////////////////
 //getBook
@@ -192,6 +186,26 @@ type GetAuthorParams struct {
 }
 
 func (v *GetAuthorParams) Validate() error {
+
+	{
+		value := v.Id
+		isValid := validator.IsUUID(value)
+
+		if !isValid {
+			return fmt.Errorf("Id is invalid")
+		}
+	}
+
+	return nil
+}
+
+/////////////////////////////////////////////////////////////////////
+//getAuthors
+type GetAuthorsParams struct {
+	Id string `json:"id"`
+}
+
+func (v *GetAuthorsParams) Validate() error {
 
 	{
 		value := v.Id

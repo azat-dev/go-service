@@ -120,7 +120,7 @@ func buildStructType(name TypeName, data StructTypeData) (string, error) {
 		fieldsText = fieldsText + fmt.Sprintf("%v %v `json:\"%v\"`\n", strings.Title(fieldName), goType, fieldName)
 	}
 
-	typeValidator, err := getTypeValidator(name, data)
+	typeValidator, err := getStructTypeValidator(name, data)
 	if err != nil {
 		return "", err
 	}
@@ -152,6 +152,10 @@ func buildEnumType(name TypeName, data EnumTypeData) (string, error) {
 		return "", errors.New("wrong enum type")
 	}
 
+	validator, err := getEnumTypeValidator(name, data)
+	if err != nil {
+		return "", err
+	}
 
 	return fmt.Sprintf(`
 		type %v %v 
@@ -159,7 +163,9 @@ func buildEnumType(name TypeName, data EnumTypeData) (string, error) {
 		const (
 			%v 
 		)
-	`, typeName, data.Type, valuesText), nil
+
+		%v
+	`, typeName, data.Type, valuesText, validator), nil
 }
 
 func getUnmarshaller(typeName TypeName, fields StructTypeData) string {
@@ -240,7 +246,33 @@ func getUnmarshaller(typeName TypeName, fields StructTypeData) string {
 	`, typeName, commonFields, rawVariableFields, commonFieldsAssignment, variableFieldsUnmarshal)
 }
 
-func getTypeValidator(name TypeName, fields StructTypeData) (string, error) {
+func getEnumTypeValidator(name TypeName, data EnumTypeData) (string, error) {
+	cases := ""
+
+	if data.Type == "int" {
+		for valueName, _ := range data.ValuesInteger {
+			cases += fmt.Sprintf("case %v:\n return nil\n", strings.Title(valueName))
+		}
+	} else if data.Type == "string" {
+		for valueName, _ := range data.ValuesString {
+			cases += fmt.Sprintf("case %v:\n return nil\n", strings.Title(valueName))
+		}
+	} else {
+		return "", errors.New("wrong enum type")
+	}
+
+	return fmt.Sprintf(`
+		func(v %v) Validate() error {
+			switch v {
+			%v
+			}
+
+			return fmt.Errorf("no such value: %%v", v)
+		}
+	`, name, cases), nil
+}
+
+func getStructTypeValidator(name TypeName, fields StructTypeData) (string, error) {
 	conditions := ""
 
 	for fieldName, fieldTypeInfo := range fields {
@@ -434,7 +466,7 @@ func buildParamsForMethod(methodName MethodName, methodData MethodData) (string,
 		fields[FieldName(paramName)] = paramType
 	}
 
-	paramsValidator, err := getTypeValidator(TypeName(name), fields)
+	paramsValidator, err := getStructTypeValidator(TypeName(name), fields)
 	if err != nil {
 		return "", err
 	}

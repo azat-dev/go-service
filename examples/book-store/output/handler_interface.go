@@ -2,8 +2,8 @@
 package executor
 
 type HandlerInterface interface {
-	GetBook(session SessionInterface, id string) (*Book, error)
-	GetBooks(session SessionInterface, id string) (*[]Book, error)
 	GetAuthor(session SessionInterface, id string) (*Author, error)
 	GetAuthors(session SessionInterface, id string) (*[]Author, error)
+	GetBook(session SessionInterface, id string) (*Book, error)
+	GetBooks(session SessionInterface, id string) (*[]Book, error)
 }

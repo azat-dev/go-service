@@ -13,7 +13,6 @@
 
 ```yaml
 ---
----
 version: 0.0.1
 name: booksApi
 package: executor
@@ -94,7 +93,7 @@ var _ executor.HandlerInterface = (*Handler)(nil)
 ### 5. Run your handler with executor
 
 ```go
-response, error := h.executor.Execute(session, inputJsonText)
+response, error := executor.Execute(session, inputJsonText)
 ```
 
 
