@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/format"
 	"strings"
+	"github.com/pkg/errors"
 )
 
 func buildTypesFile(service *Service) (string, error) {
@@ -22,8 +23,19 @@ func buildTypesFile(service *Service) (string, error) {
 
 	`, service.Package)
 
-	for name, fields := range service.Types {
-		typeText, err := buildType(name, fields)
+	for name, typeData := range service.Types {
+
+		var err error
+		var typeText string
+
+		switch typeData.(type) {
+		case StructTypeData:
+			typeText, err = buildStructType(name, typeData.(StructTypeData))
+
+		case EnumTypeData:
+			typeText, err = buildEnumType(name, typeData.(EnumTypeData))
+		}
+
 		if err != nil {
 			return "", err
 		}
@@ -99,16 +111,16 @@ func getGoType(typeInfo TypeInfo) string {
 	return resultType
 }
 
-func buildType(name TypeName, fields Fields) (string, error) {
+func buildStructType(name TypeName, data StructTypeData) (string, error) {
 	fieldsText := ""
 
-	for fieldName, fieldTypeInfo := range fields {
+	for fieldName, fieldTypeInfo := range data {
 		fieldName := string(fieldName)
 		goType := getGoType(fieldTypeInfo)
 		fieldsText = fieldsText + fmt.Sprintf("%v %v `json:\"%v\"`\n", strings.Title(fieldName), goType, fieldName)
 	}
 
-	typeValidator, err := getTypeValidator(name, fields)
+	typeValidator, err := getTypeValidator(name, data)
 	if err != nil {
 		return "", err
 	}
@@ -120,10 +132,37 @@ func buildType(name TypeName, fields Fields) (string, error) {
 		%v
 		
 		%v
-	`, name, fieldsText, typeValidator, getUnmarshaller(name, fields)), nil
+	`, name, fieldsText, typeValidator, getUnmarshaller(name, data)), nil
 }
 
-func getUnmarshaller(typeName TypeName, fields Fields) string {
+func buildEnumType(name TypeName, data EnumTypeData) (string, error) {
+
+	typeName := strings.Title(string(name))
+	valuesText := ""
+
+	if data.Type == "int" {
+		for valueName, value := range data.ValuesInteger {
+			valuesText = valuesText + fmt.Sprintf("%v %v = %v\n", strings.Title(valueName), typeName, value)
+		}
+	} else if data.Type == "string" {
+		for valueName, value := range data.ValuesString {
+			valuesText = valuesText + fmt.Sprintf("%v %v = \"%v\"\n", strings.Title(strings.Replace(valueName, "\"", "\"", -1)), typeName, value)
+		}
+	} else {
+		return "", errors.New("wrong enum type")
+	}
+
+
+	return fmt.Sprintf(`
+		type %v %v 
+
+		const (
+			%v 
+		)
+	`, typeName, data.Type, valuesText), nil
+}
+
+func getUnmarshaller(typeName TypeName, fields StructTypeData) string {
 
 	variableFields := map[string]TypeInfo{}
 	plainFields := map[string]TypeInfo{}
@@ -201,7 +240,7 @@ func getUnmarshaller(typeName TypeName, fields Fields) string {
 	`, typeName, commonFields, rawVariableFields, commonFieldsAssignment, variableFieldsUnmarshal)
 }
 
-func getTypeValidator(name TypeName, fields Fields) (string, error) {
+func getTypeValidator(name TypeName, fields StructTypeData) (string, error) {
 	conditions := ""
 
 	for fieldName, fieldTypeInfo := range fields {
@@ -386,7 +425,7 @@ func buildParamsForMethod(methodName MethodName, methodData MethodData) (string,
 	name := strings.Title(string(methodName)) + "Params"
 	fieldsText := ""
 
-	fields := Fields{}
+	fields := StructTypeData{}
 	for paramName, paramType := range methodData.Params {
 		paramName := string(paramName)
 

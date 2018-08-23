@@ -4,11 +4,17 @@ name: booksApi
 package: executor
 description: api service for books store
 types:
+  BookType(enum):
+    type: string
+    values:
+      magazine: "magazineItem"
+      bookItem: "book"
   Book:
     id: uuid
     authorId: uuid
     createdAt: time
     title: string(0,255)
+    type: BookType
   Author:
     id: uuid
     name: string(0,255)

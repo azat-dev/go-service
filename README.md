@@ -1,4 +1,5 @@
-# go-service
+# ![Logo](https://s3-eu-west-1.amazonaws.com/timeio.xyz/logo.svg) go-service
+
 > Boilerplate code generator for json-rpc services.
   Features: parsing json to structures, input data validation
 

@@ -46,25 +46,6 @@ func (e *Executor) execute(session SessionInterface, packedMessage *[]byte) exch
 
 	switch requestMessage.Method {
 
-	case "getAuthors":
-		var params GetAuthorsParams
-		err := json.Unmarshal(requestMessage.Params, &params)
-		if err != nil {
-			return exchange.NewErrorResponse(requestId, "WrongRequest", fmt.Sprintf("can't parse params: %v", err))
-		}
-
-		err = params.Validate()
-		if err != nil {
-			return exchange.NewErrorResponse(requestId, "WrongRequest", fmt.Sprintf("can't wrong params: %v", err))
-		}
-
-		result, err := e.handler.GetAuthors(session, params.Id)
-		if err != nil {
-			return exchange.NewErrorResponse(requestId, "ServerError", err.Error())
-		}
-
-		return exchange.NewResultResponse(requestId, result)
-
 	case "getBook":
 		var params GetBookParams
 		err := json.Unmarshal(requestMessage.Params, &params)
@@ -116,6 +97,25 @@ func (e *Executor) execute(session SessionInterface, packedMessage *[]byte) exch
 		}
 
 		result, err := e.handler.GetAuthor(session, params.Id)
+		if err != nil {
+			return exchange.NewErrorResponse(requestId, "ServerError", err.Error())
+		}
+
+		return exchange.NewResultResponse(requestId, result)
+
+	case "getAuthors":
+		var params GetAuthorsParams
+		err := json.Unmarshal(requestMessage.Params, &params)
+		if err != nil {
+			return exchange.NewErrorResponse(requestId, "WrongRequest", fmt.Sprintf("can't parse params: %v", err))
+		}
+
+		err = params.Validate()
+		if err != nil {
+			return exchange.NewErrorResponse(requestId, "WrongRequest", fmt.Sprintf("can't wrong params: %v", err))
+		}
+
+		result, err := e.handler.GetAuthors(session, params.Id)
 		if err != nil {
 			return exchange.NewErrorResponse(requestId, "ServerError", err.Error())
 		}

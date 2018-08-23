@@ -8,7 +8,7 @@ import (
 
 type TypeName string
 type FieldName string
-type Fields map[FieldName]TypeInfo
+type StructTypeData map[FieldName]TypeInfo
 type TypeInfo struct {
 	IsCustomType bool
 	DataType     string
@@ -19,6 +19,12 @@ type TypeInfo struct {
 	IsVariable   bool
 	MapField     FieldName
 	Mapping      map[string]TypeInfo
+}
+
+type EnumTypeData struct {
+	Type          string
+	ValuesString  map[string]string
+	ValuesInteger map[string]int
 }
 
 func getTypeInfo(schemaType string) TypeInfo {
@@ -60,46 +66,6 @@ func getTypeInfo(schemaType string) TypeInfo {
 	return result
 }
 
-func (f *Fields) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var parsedData map[string]interface{}
-
-	err := unmarshal(&parsedData)
-	if err != nil {
-		return err
-	}
-
-	*f = Fields{}
-
-	for fieldName, value := range parsedData {
-		if !strings.HasSuffix(fieldName, "?") {
-
-			value := value.(string)
-			(*f)[FieldName(fieldName)] = getTypeInfo(value)
-
-		} else {
-
-			fieldName := strings.TrimSuffix(fieldName, "?")
-
-			value := value.(map[interface{}]interface{})
-			mapField := value["mapField"].(string)
-
-			mapping := map[string]TypeInfo{}
-
-			for key, value := range value["mapping"].(map[interface{}]interface{}) {
-				mapping[key.(string)] = getTypeInfo(value.(string))
-			}
-
-			(*f)[FieldName(fieldName)] = TypeInfo{
-				MapField:   FieldName(mapField),
-				Mapping:    mapping,
-				IsVariable: true,
-			}
-		}
-	}
-
-	return err
-}
-
 type MethodName string
 type ParamName string
 
@@ -136,11 +102,114 @@ type TypeMapping struct {
 	Mapping  map[string]TypeName `json:"mapping"`
 }
 
+type TypesData map[TypeName]interface{}
+
+func (t *TypesData) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	parsedTypes := map[TypeName]interface{}{}
+
+	err := unmarshal(&parsedTypes)
+	if err != nil {
+		return err
+	}
+
+	*t = TypesData{}
+
+	for typeName, value := range parsedTypes {
+
+		cleanedTypeName := strings.Title(strings.TrimSuffix(string(typeName), "(enum)"))
+
+		var err error
+		var resultData interface{}
+		parsedDataType := value.(map[interface{}]interface{})
+
+		if strings.HasSuffix(string(typeName), "(enum)") {
+			var enumData *EnumTypeData
+			enumData, err = unmarshalEnum(parsedDataType)
+			resultData = *enumData
+
+		} else {
+			var structData *StructTypeData
+			structData, err = unmarshalStructData(parsedDataType)
+			resultData = *structData
+		}
+
+		if err != nil {
+			return err
+		}
+
+		(*t)[TypeName(cleanedTypeName)] = resultData
+	}
+
+	return err
+}
+
+func unmarshalEnum(value map[interface{}]interface{}) (*EnumTypeData, error) {
+
+	enumType := value["type"].(string)
+
+	valuesInteger := map[string]int{}
+	valuesString := map[string]string{}
+
+	switch enumType {
+	case "string":
+		for key, value := range value["values"].(map[interface{}]interface{}) {
+			key := key.(string)
+			valuesString[key] = value.(string)
+		}
+	case "int":
+		for key, value := range value["values"].(map[interface{}]interface{}) {
+			key := key.(string)
+			valuesInteger[key] = value.(int)
+		}
+	}
+
+	return &EnumTypeData{
+		Type:          enumType,
+		ValuesString:  valuesString,
+		ValuesInteger: valuesInteger,
+	}, nil
+}
+
+func unmarshalStructData(parsedData map[interface{}]interface{}) (*StructTypeData, error) {
+
+	result := StructTypeData{}
+	for fieldName, value := range parsedData {
+
+		fieldName := fieldName.(string)
+		if strings.HasSuffix(fieldName, "?") {
+
+			fieldName := strings.TrimSuffix(fieldName, "?")
+
+			value := value.(map[interface{}]interface{})
+			mapField := value["mapField"].(string)
+
+			mapping := map[string]TypeInfo{}
+
+			for key, value := range value["mapping"].(map[interface{}]interface{}) {
+				mapping[key.(string)] = getTypeInfo(value.(string))
+			}
+
+			result[FieldName(fieldName)] = TypeInfo{
+				MapField:   FieldName(mapField),
+				Mapping:    mapping,
+				IsVariable: true,
+			}
+
+		} else {
+
+			value := value.(string)
+			result[FieldName(fieldName)] = getTypeInfo(value)
+		}
+	}
+
+	return &result, nil
+}
+
 type Service struct {
 	Version     string                    `json:"version"`
 	Name        string                    `json:"name"`
 	Description string                    `json:"description"`
-	Types       map[TypeName]Fields       `json:"types"`
+	Types       TypesData                 `json:"types"`
 	Methods     map[MethodName]MethodData `json:"methods"`
 	Package     string                    `json:"package"`
 }
