@@ -6,7 +6,6 @@
 ## Installation
 
     go get github.com/akaumov/go-service
-
     
 ## Quick usage guide
 
