@@ -1,4 +1,4 @@
-# ![Logo](https://s3-eu-west-1.amazonaws.com/timeio.xyz/logo.svg) go-service
+# ![Logo](./images/logo.svg?raw=true) go-service
 
 > Boilerplate code generator for json-rpc services.
   Features: parsing json to structures, input data validation
@@ -6,6 +6,7 @@
 ## Installation
 
     go get github.com/akaumov/go-service
+
     
 ## Quick usage guide
 
