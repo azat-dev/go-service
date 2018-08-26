@@ -13,7 +13,6 @@ func buildTypesFile(service *Service) (string, error) {
 		import (
 			"fmt"
 			"encoding/json"
-			"github.com/pkg/errors"
 			validator "github.com/asaskevich/govalidator"
 		)
 
@@ -132,7 +131,16 @@ func buildStructType(name TypeName, data StructTypeData) (string, error) {
 		%v
 		
 		%v
-	`, name, fieldsText, typeValidator, getUnmarshaller(name, data)), nil
+
+		func (v *%v) String() string {
+			jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
+			if err != nil {
+				return ""
+			}
+
+			return string(jsonRepresentation)
+		}
+	`, name, fieldsText, typeValidator, getUnmarshaller(name, data), name), nil
 }
 
 func buildEnumType(name TypeName, data EnumTypeData) (string, error) {
@@ -471,5 +479,20 @@ func buildParamsForMethod(methodName MethodName, methodData MethodData) (string,
 		return "", err
 	}
 
-	return fmt.Sprintf("type %v struct { %v } \n %v", name, fieldsText, paramsValidator), nil
+	return fmt.Sprintf(`
+		type %v struct {
+			%v 
+		}
+		
+		%v
+
+		func (v *%v) String() string {
+			jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
+			if err != nil {
+				return ""
+			}
+
+			return string(jsonRepresentation)
+		}
+	`, name, fieldsText, paramsValidator, name), nil
 }
