@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	validator "github.com/asaskevich/govalidator"
+	"github.com/pkg/errors"
 )
 
 type Validatable interface {
@@ -22,9 +23,9 @@ const (
 
 func (v BookType) Validate() error {
 	switch v {
-	case BookItem:
-		return nil
 	case Magazine:
+		return nil
+	case BookItem:
 		return nil
 
 	}
@@ -36,11 +37,11 @@ func (v BookType) Validate() error {
 //Book
 
 type Book struct {
+	Type      BookType `json:"type"`
 	Id        string   `json:"id"`
 	AuthorId  string   `json:"authorId"`
 	CreatedAt int64    `json:"createdAt"`
 	Title     string   `json:"title"`
-	Type      BookType `json:"type"`
 }
 
 func (v *Book) Validate() error {
@@ -84,7 +85,7 @@ func (v *Book) Validate() error {
 	return nil
 }
 
-func (v *Book) String() string {
+func (v Book) String() string {
 	jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return ""
@@ -97,13 +98,22 @@ func (v *Book) String() string {
 //Author
 
 type Author struct {
-	Id         string  `json:"id"`
-	Name       string  `json:"name"`
 	Surname    string  `json:"surname"`
 	Patronymic *string `json:"patronymic"`
+	Id         string  `json:"id"`
+	Name       string  `json:"name"`
 }
 
 func (v *Author) Validate() error {
+
+	{
+		value := v.Surname
+		isValid := (len(value) >= 0 && len(value) <= 255)
+
+		if !isValid {
+			return fmt.Errorf("Surname is invalid")
+		}
+	}
 
 	{
 		value := v.Patronymic
@@ -132,19 +142,10 @@ func (v *Author) Validate() error {
 		}
 	}
 
-	{
-		value := v.Surname
-		isValid := (len(value) >= 0 && len(value) <= 255)
-
-		if !isValid {
-			return fmt.Errorf("Surname is invalid")
-		}
-	}
-
 	return nil
 }
 
-func (v *Author) String() string {
+func (v Author) String() string {
 	jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return ""
@@ -177,7 +178,7 @@ func (v *GetBookParams) Validate() error {
 	return nil
 }
 
-func (v *GetBookParams) String() string {
+func (v GetBookParams) String() string {
 	jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return ""
@@ -207,7 +208,7 @@ func (v *GetBooksParams) Validate() error {
 	return nil
 }
 
-func (v *GetBooksParams) String() string {
+func (v GetBooksParams) String() string {
 	jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return ""
@@ -237,7 +238,7 @@ func (v *GetAuthorParams) Validate() error {
 	return nil
 }
 
-func (v *GetAuthorParams) String() string {
+func (v GetAuthorParams) String() string {
 	jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return ""
@@ -267,7 +268,7 @@ func (v *GetAuthorsParams) Validate() error {
 	return nil
 }
 
-func (v *GetAuthorsParams) String() string {
+func (v GetAuthorsParams) String() string {
 	jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		return ""

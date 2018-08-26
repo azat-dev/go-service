@@ -133,7 +133,7 @@ func buildStructType(name TypeName, data StructTypeData) (string, error) {
 		
 		%v
 
-		func (v *%v) String() string {
+		func (v %v) String() string {
 			jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 			if err != nil {
 				return ""
@@ -487,7 +487,7 @@ func buildParamsForMethod(methodName MethodName, methodData MethodData) (string,
 		
 		%v
 
-		func (v *%v) String() string {
+		func (v %v) String() string {
 			jsonRepresentation, err := json.MarshalIndent(v, "", "    ")
 			if err != nil {
 				return ""
