@@ -13,6 +13,7 @@ func buildTypesFile(service *Service) (string, error) {
 		import (
 			"fmt"
 			"encoding/json"
+			"github.com/pkg/errors"
 			validator "github.com/asaskevich/govalidator"
 		)
 
