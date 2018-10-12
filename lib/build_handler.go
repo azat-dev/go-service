@@ -38,7 +38,10 @@ func buildHandlerMethod(methodName MethodName, methodData MethodData) string {
 	}
 
 	params := ""
-	for paramName, paramTypeInfo := range methodData.Params {
+	for _, paramData := range methodData.Params {
+		paramName := paramData.Name
+		paramTypeInfo := paramData.TypeInfo
+
 		if params != "" {
 			params += ", "
 		}

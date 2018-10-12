@@ -2,9 +2,9 @@ package lib
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"go/format"
 	"strings"
-	"github.com/pkg/errors"
 )
 
 func buildTypesFile(service *Service) (string, error) {
@@ -437,7 +437,7 @@ func getValidateConditionForArrayValue(valueName string, typeInfo TypeInfo) stri
 			} (%v)
 	`, goType, itemCondition, value)
 
-	if (typeInfo.IsOptional) {
+	if typeInfo.IsOptional {
 		return fmt.Sprintf("%v == nil || (%v %v)", valueName, lengthCondition, itemsCondition)
 	}
 
@@ -467,8 +467,9 @@ func buildParamsForMethod(methodName MethodName, methodData MethodData) (string,
 	fieldsText := ""
 
 	fields := StructTypeData{}
-	for paramName, paramType := range methodData.Params {
-		paramName := string(paramName)
+	for _, paramData := range methodData.Params {
+		paramName := string(paramData.Name)
+		paramType := paramData.TypeInfo
 
 		goType := getGoType(paramType)
 		fieldsText = fieldsText + fmt.Sprintf("%v %v `json:\"%v\"`\n", strings.Title(paramName), goType, paramName)

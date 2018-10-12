@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"gopkg.in/yaml.v2"
 	"regexp"
 	"strconv"
 	"strings"
@@ -69,15 +70,20 @@ func getTypeInfo(schemaType string) TypeInfo {
 type MethodName string
 type ParamName string
 
+type Parameter struct {
+	Name     ParamName
+	TypeInfo TypeInfo
+}
+
 type MethodData struct {
-	Params map[ParamName]TypeInfo `json:"params"`
-	Result TypeInfo               `json:"result"`
+	Params []Parameter `json:"params"`
+	Result TypeInfo    `json:"result"`
 }
 
 func (f *MethodData) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	parsedData := struct {
-		Params map[ParamName]TypeName `json:"params"`
-		Result TypeName               `json:"result"`
+		Params yaml.MapSlice `json:"params"`
+		Result TypeName      `json:"result"`
 	}{}
 
 	err := unmarshal(&parsedData)
@@ -86,12 +92,15 @@ func (f *MethodData) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	*f = MethodData{
-		Params: map[ParamName]TypeInfo{},
+		Params: []Parameter{},
 	}
 	f.Result = getTypeInfo(string(parsedData.Result))
 
-	for key, value := range parsedData.Params {
-		f.Params[key] = getTypeInfo(string(value))
+	for _, data := range parsedData.Params {
+		f.Params = append(f.Params, Parameter{
+			Name:     ParamName(data.Key.(string)),
+			TypeInfo: getTypeInfo(string(data.Value.(string))),
+		})
 	}
 
 	return err
